@@ -1,0 +1,8 @@
+plan: 'testdata/plan_cmdvar.yaml'
+variables:
+  command: 'restored'
+actions:
+  - name: act1
+    state: DONE
+  - name: act2
+    state: FAILED

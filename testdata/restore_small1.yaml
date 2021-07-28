@@ -1,0 +1,5 @@
+plan: 'testdata/plan_small1.yaml'
+variables: {}
+actions:
+  - name: test
+    state: FAILED

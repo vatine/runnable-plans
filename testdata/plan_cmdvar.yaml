@@ -1,0 +1,10 @@
+variables:
+  - name: command
+    value: "true"
+
+actions:
+  - name: act1
+    command: "${command}"
+
+  - name: act2
+    command: "echo ${command}"
