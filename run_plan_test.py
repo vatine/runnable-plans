@@ -54,7 +54,18 @@ class TestBuildAction(unittest.TestCase):
         self.assertEqual(type(rv), run_plan.Prompt)
         self.assertEqual(rv.name(), "name")
         self.assertEqual(rv._text, "/bin/false")
-        self.assertEqual(rv._prompt, "12")
+        self.assertEqual(rv._prompt, "12 ")
+
+    def test_empty_prompt(self):
+        data = {
+            "name": "name",
+            "text": "/bin/false",
+        }
+        rv = run_plan.build_action(data)
+        self.assertEqual(type(rv), run_plan.Prompt)
+        self.assertEqual(rv.name(), "name")
+        self.assertEqual(rv._text, "/bin/false")
+        self.assertEqual(rv._prompt, "Done? ")
 
     def test_unknown(self):
         data = {'name': "test"}
