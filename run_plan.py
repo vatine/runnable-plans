@@ -21,6 +21,34 @@ out any actual dependency that may exist between the steps. so that a
 fully automated solution takes care of handling them.
 
 A fuller explanation of the plan file format follows below.
+
+variables:
+  - <variable>
+  ...
+actions:
+ - <action>
+  ...
+
+<variable>
+name: variable-name
+value: optional initial value
+
+<action>
+name: action-name
+text: explanatory text
+after: # optional
+  - <action name>
+  ...
+
+For "prompt" actions:
+prompt: question 
+
+For "command" actions:
+command: shell-command
+
+For "set variable" actions:
+variable: <variable name>
+default: <default value, optional> 
 """
 
 import argparse
@@ -201,10 +229,15 @@ class Plan:
 
     def graph(self, stream):
         stream.write("digraph {\n")
+        stream.write('  "start" [ shape=circle fillcolor=gray ]\n')
+        stream.write('  "end" [ shape=octagon fillcolor=gray ]\n')
         for name in self._actions:
             self._actions[name].node(stream)
         for name in self._actions:
             self._actions[name].deps(stream)
+        for name in self._actions:
+            stream.write(f'  "start" -> "{name}"\n')
+            stream.write(f'  "{name}" -> "end"\n')
         stream.write("}\n")
         
 
@@ -279,14 +312,16 @@ class Action:
 class Prompt(Action):
     def __init__(self, text=None, prompt=None, fail=False, **kwargs):
         super().__init__(**kwargs)
-        self._prompt = prompt
+        if prompt is None:
+            prompt = "Done?"
+        self._prompt = prompt + ' '
         self._text = text
         self._fail = fail
 
     def _get_answer(self):
         if self._under_test:
             return not self._fail
-        response = raw_input(self._prompt)
+        response = input(self._prompt)
         return parse_response(response)
 
     def run(self):
@@ -314,7 +349,7 @@ class Set(Action):
         default = self._plan.expand_variables(self._default)
         new_value = default
         if not self._under_test:
-            answer = raw_input(f'Provide a value for {self._variable}\n (just pressing enter defaults it to {default}')
+            answer = input(f'Provide a value for {self._variable}\n (just pressing enter defaults it to {default}) ')
             if answer != "":
                 new_value = answer
         try:
@@ -368,12 +403,12 @@ def build_action(data):
 
     if ('variable' in data) or ('default' in data):
         if action_type is not None:
-            raise UnknownAction('Action seems to be a mix of Command and Set')
+            raise UnknownAction('Action %s seems to be a mix of Command and Set' % data['name'])
         action_type = Set
 
     if ('text' in data) or ('prompt' in data):
         if action_type is not None:
-            raise UnknownAction('Action seems to be a mix of Prompt, and one or more of Command or Set')
+            raise UnknownAction('Action %s seems to be a mix of Prompt, and one or more of Command or Set' % data['name'])
         action_type = Prompt
 
     if action_type is None:
@@ -503,7 +538,6 @@ def main():
     
 
     args = parser.parse_args()
-    print(f"DEBUG: {args.file}")
     args.cmd(args.file[0])
 
 
