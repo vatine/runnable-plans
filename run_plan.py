@@ -59,6 +59,7 @@ import tempfile
 import yaml
 
 STATES = ["PENDING", "DONE", "FAILED"]
+DRYRUN = False
 
 
 class UnknownAction(Exception):
@@ -345,7 +346,7 @@ class Set(Action):
         super().__init__(**kwargs)
 
     def run(self):
-        self._header(f'\Setting the value of variable {self._variable}')
+        self._header(f'\tSetting the value of variable {self._variable}')
         default = self._plan.expand_variables(self._default)
         new_value = default
         if not self._under_test:
@@ -373,6 +374,9 @@ class Command(Action):
         cmd = self._plan.expand_variables(self._command)
         try:
             self._header("\tRunning the following command:\n\t\t"+cmd)
+            if DRYRUN:
+                self._dryrun()
+                return
             rv = subprocess.call(cmd.split())
             if rv == 0:
                 self.done()
@@ -380,6 +384,10 @@ class Command(Action):
                 self.fail()
         except FileNotFoundError:
             self.fail()
+
+    def _dryrun(self):
+        print('\t\tAction not done, because this is a dry-run')
+        self.done()
 
     def node(self, stream):
         stream.write(f' "{self._name}" [ shape=component fillcolor={self._color()} ]\n')
@@ -521,11 +529,14 @@ def graph(filename ,out=sys.stdout):
 
 
 def main():
+    global DRYRUN
+    
     parser = argparse.ArgumentParser()
     subs = parser.add_subparsers()
 
     runcmd = subs.add_parser("run")
     runcmd.set_defaults(cmd=run)
+    runcmd.add_argument('--dryrun', default=False, action='store_true')
     runcmd.add_argument("file", nargs=1)
 
     resumecmd = subs.add_parser("resume")
@@ -538,6 +549,9 @@ def main():
     
 
     args = parser.parse_args()
+    if args.cmd == run:
+        if args.dryrun:
+            DRYRUN = True
     args.cmd(args.file[0])
 
 
