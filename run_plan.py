@@ -232,11 +232,11 @@ class Plan:
         stream.write("digraph {\n")
         stream.write('  "start" [ shape=circle fillcolor=gray ]\n')
         stream.write('  "end" [ shape=octagon fillcolor=gray ]\n')
-        for name in self._actions:
+        for name in sorted(self._actions):
             self._actions[name].node(stream)
-        for name in self._actions:
+        for name in sorted(self._actions):
             self._actions[name].deps(stream)
-        for name in self._actions:
+        for name in sorted(self._actions):
             stream.write(f'  "start" -> "{name}"\n')
             stream.write(f'  "{name}" -> "end"\n')
         stream.write("}\n")
@@ -334,7 +334,7 @@ class Prompt(Action):
             self.fail()
 
     def node(self, stream):
-        stream.write(f' "{self._name}" [ shape=note fillcolor={self._color()} ]\n')
+        stream.write(f'  "{self._name}" [ shape=note fillcolor={self._color()} ]\n')
 
 
 class Set(Action):
@@ -360,7 +360,7 @@ class Set(Action):
             self.fail()
 
     def node(self, stream):
-        stream.write(f' "{self._name}" [ shape=polygon fillcolor={self._color()} ]\n')
+        stream.write(f'  "{self._name}" [ shape=polygon fillcolor={self._color()} ]\n')
 
 
 class Command(Action):
@@ -390,7 +390,7 @@ class Command(Action):
         self.done()
 
     def node(self, stream):
-        stream.write(f' "{self._name}" [ shape=component fillcolor={self._color()} ]\n')
+        stream.write(f'  "{self._name}" [ shape=component fillcolor={self._color()} ]\n')
 
 
 def build_action(data):
@@ -510,7 +510,7 @@ def run(filename):
         print(f"Execution failed, you can resume by running\n\trun_plan.py resume {f.name}")
 
 def resume(filename):
-    plan = load_restore(filename)
+    plan = restore(filename)
     if plan.run():
         # Everything is OK.
         return

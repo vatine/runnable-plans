@@ -1,0 +1,12 @@
+actions:
+  - name: prompter
+    text: this is sime example text
+    prompt: Prompt?
+  - name: setvar
+    variable: foo
+    after:
+      - prompter
+  - name: runner
+    command: true
+    after:
+      - prompter

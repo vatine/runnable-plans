@@ -4,6 +4,7 @@
 # LICENSE for more details.
 
 
+import io
 import unittest
 
 import run_plan
@@ -540,6 +541,29 @@ class TestMakeWrapped(unittest.TestCase):
         self.assertEqual(saw, want)
 
 
+class TestGraph(unittest.TestCase):
+    def test_simple_graph(self):
+        plan = run_plan.load("testdata/plan_small1.yaml")
+        sink = io.StringIO()
+        plan.graph(sink)
+        want = '''digraph {\n  "start" [ shape=circle fillcolor=gray ]\n  "end" [ shape=octagon fillcolor=gray ]\n  "test" [ shape=component fillcolor=gray ]\n  "start" -> "test"\n  "test" -> "end"\n}\n'''
+        self.assertEqual(sink.getvalue(), want)
+        sink.close()
+
+    def test_restored_graph(self):
+        plan = run_plan.load("testdata/restore_graph.yaml")
+        sink = io.StringIO()
+        plan.graph(sink)
+        want = '''digraph {\n  "start" [ shape=circle fillcolor=gray ]\n  "end" [ shape=octagon fillcolor=gray ]\n  "prompter" [ shape=note fillcolor=green ]\n  "runner" [ shape=component fillcolor=red ]\n  "setvar" [ shape=polygon fillcolor=gray ]\n  "prompter" -> "runner"\n  "prompter" -> "setvar"\n  "start" -> "prompter"\n  "prompter" -> "end"\n  "start" -> "runner"\n  "runner" -> "end"\n  "start" -> "setvar"\n  "setvar" -> "end"\n}\n'''
+        self.assertEqual(sink.getvalue(), want)
+        sink.close()
+
+    def test_graph(self):
+        sink = io.StringIO()
+        run_plan.graph("testdata/plan_small1.yaml", out=sink)
+        want = '''digraph {\n  "start" [ shape=circle fillcolor=gray ]\n  "end" [ shape=octagon fillcolor=gray ]\n  "test" [ shape=component fillcolor=gray ]\n  "start" -> "test"\n  "test" -> "end"\n}\n'''
+        self.assertEqual(sink.getvalue(), want)
+        sink.close()
         
 if __name__ == '__main__':
     unittest.main()
