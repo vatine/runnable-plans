@@ -1,0 +1,7 @@
+plan: 'testdata/plan_graph.yaml'
+variables: {}
+actions:
+  - name: prompter
+    state: DONE
+  - name: runner
+    state: FAILED
