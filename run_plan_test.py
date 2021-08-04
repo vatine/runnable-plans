@@ -329,6 +329,16 @@ class TestRunnableAction(unittest.TestCase):
         self.assertEqual(a.state(), "FAILED")
         self.assertRaises(run_plan.DoubleRun, a.run)
 
+    def test_false_pending_dryrun(self):
+        p = run_plan.Plan()
+        a = run_plan.Command(name="test", command="false", state="PENDING", plan=p)
+        saved = run_plan.DRYRUN
+        run_plan.DRYRUN = True
+        a.run()
+        run_plan.DRYRUN = saved
+        self.assertEqual(a.state(), "DONE")
+        self.assertRaises(run_plan.DoubleRun, a.run)
+
     def test_non_existing_pending(self):
         p = run_plan.Plan()
         a = run_plan.Command(name="test", command="/slemslemslem/syzygy", state="PENDING", plan=p)
