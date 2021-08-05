@@ -565,5 +565,11 @@ class TestGraph(unittest.TestCase):
         self.assertEqual(sink.getvalue(), want)
         sink.close()
         
+class TestSaves(unittest.TestCase):
+    def test_save_graph(self):
+        plan = run_plan.load("testdata/restore_graph.yaml")
+        sink = io.StringIO()
+        run_plan.save(plan, sink, "foo")
+
 if __name__ == '__main__':
     unittest.main()

@@ -188,10 +188,13 @@ class Plan:
             raise IncorrectPlan("The plan is inconsistent.")
         self._reset_failed()
 
-        next = self._next()
-        while next is not None:
-            next.run()
+        try:
             next = self._next()
+            while next is not None:
+                next.run()
+                next = self._next()
+        except KeyboardInterrupt:
+            return False
 
         return not self._any_failed()
 
@@ -502,12 +505,9 @@ def run(filename):
         # Everything is OK.
         return
 
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        plan.save(f)
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as f:
+        save(plan, f, f.name)
 
-        print()
-        print()
-        print(f"Execution failed, you can resume by running\n\trun_plan.py resume {f.name}")
 
 def resume(filename):
     plan = restore(filename)
@@ -515,13 +515,17 @@ def resume(filename):
         # Everything is OK.
         return
 
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        plan.save(f)
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as f:
+        save(plan, f, f.name)
 
-        print()
-        print()
-        print(f"Execution failed, you can resume by running\n\trun_plan.py resume {f.name}")
 
+def save(plan, sink, name):
+    plan.save(sink)
+    
+    print()
+    print()
+    print(f"Execution failed, you can resume by running\n\trun_plan.py resume {name}")
+    
 
 def graph(filename ,out=sys.stdout):
     plan = load(filename)
