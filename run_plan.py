@@ -235,13 +235,17 @@ class Plan:
         stream.write("digraph {\n")
         stream.write('  "start" [ shape=circle fillcolor=gray ]\n')
         stream.write('  "end" [ shape=octagon fillcolor=gray ]\n')
+        is_precond = set()
         for name in sorted(self._actions):
             self._actions[name].node(stream)
+            is_precond.update(self._actions[name].preconditions())
         for name in sorted(self._actions):
             self._actions[name].deps(stream)
         for name in sorted(self._actions):
-            stream.write(f'  "start" -> "{name}"\n')
-            stream.write(f'  "{name}" -> "end"\n')
+            if not self._actions[name].preconditions():
+                stream.write(f'  "start" -> "{name}"\n')
+            if name not in is_precond:
+                stream.write(f'  "{name}" -> "end"\n')
         stream.write("}\n")
         
 
