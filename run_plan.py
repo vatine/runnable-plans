@@ -76,6 +76,14 @@ class DoubleRun(Exception):
 
 
 class Plan:
+    """A Plan object is the main container (and interaction point) for
+    interacting with a plan.
+
+    It contains utility functions for adding
+    actions, executing the plan, emitting the plan as a GraphViz graph
+    and a few more.
+    """
+    
     def __init__(self, source_file=None):
         self._source_file = source_file
         self._actions = {}
@@ -96,8 +104,7 @@ class Plan:
             self.set_value(name, data['variables'][name])
 
     def runnable(self):
-        """
-        Return a list of runnable actions.
+        """Return a list of runnable actions.
         
         This means all actions that:
         1) have neither completed successfully nor failed
@@ -157,6 +164,7 @@ class Plan:
         return True
 
     def _circular(self, start, names):
+        """Return True if there are any circular dependencies in a plan."""
         for name in names:
             if name == start:
                 return True
@@ -167,23 +175,32 @@ class Plan:
         return False
 
     def add_action(self, action):
+        """Add an action to the Plan."""
         self._actions[action.name()] = action
 
     def add_variable(self, name, value=None):
+        """Add a variable to the Plan."""
         self._variables[name] = value
 
     def set_value(self, name, value):
+        """Set the value of a variable."""
         if name not in self._variables:
             raise KeyError(f'Unknown variable {name}.')
         self._variables[name] = value
 
     def _reset_failed(self):
+        """Reset all actions in a failed state to pending."""
         for name in self._actions:
             action = self._actions[name]
             if action.state() == "FAILED":
                 action.reset()
         
     def run(self):
+        """Run the plan until no actions are executable.
+
+        If thta exhausts all actions, the plan has completed successfully,
+        otherwise something went wrong."""
+        
         if not self._well_formed():
             raise IncorrectPlan("The plan is inconsistent.")
         self._reset_failed()
@@ -199,6 +216,7 @@ class Plan:
         return not self._any_failed()
 
     def expand_variables(self, data):
+        """Expand all ${variable} references in a string."""
         try:
             start = data.index("${")
             end = data.index("}", start)
@@ -228,10 +246,12 @@ class Plan:
         return rv
 
     def save(self, f):
+        """Save the Plan as YAML to the provided stream."""
         yaml.dump(self._state(), stream=f)
 
 
     def graph(self, stream):
+        """Emit the Plan as a graph."""
         stream.write("digraph {\n")
         stream.write('  "start" [ shape=circle fillcolor=gray ]\n')
         stream.write('  "end" [ shape=octagon fillcolor=gray ]\n')
@@ -250,6 +270,12 @@ class Plan:
         
 
 class Action:
+    """Base class fro Actions.
+
+    We expect no actual Action in use to be of this class,but there are a few
+    handy utility methods we can hang o this and a few 'must be implemented'
+    methods in place as cocumentation."""
+
     def __init__(self, plan=None, name=None, state=None, after=None, under_test=False, **kwargs):
         self._name = name
         self._state = "PENDING"
@@ -263,6 +289,7 @@ class Action:
             self._after = []
 
     def _header(self, header):
+        """Emit a header, error if the Action is not pending."""
         if not self._is_pending():
             raise DoubleRun(f'Command {self._name} executed twice')
         if self._under_test:
@@ -272,13 +299,14 @@ class Action:
             print(header)
 
     def name(self):
+        """Return the name of the Action."""
         return self._name
 
     def _is_pending(self):
+        """Return True if the Action is still pending."""
         return self._state == "PENDING"
         
     def run(self):
-
         """Perform the intended run-time action. 
 
         This is by necessity different for each action type. The base
@@ -288,18 +316,27 @@ class Action:
         raise NotImplementedError
 
     def state(self):
+        """Return the state of the Action."""
         return self._state
 
     def preconditions(self):
+        """retirn the pre-conditions for this Action.
+
+        That is, the Actions that need to ahve completed before this one can be
+        executed."""
+        
         return self._after
 
     def done(self):
+        """Mark Action as done."""
         self._state = "DONE"
 
     def fail(self):
+        """Mark action as failed."""
         self._state = "FAILED"
 
     def _color(self):
+        """Set the color of an actio0n, only usable when graphing a saved file."""
         if self._state == "DONE":
             return "green"
         if self._state == "FAILED":
@@ -307,17 +344,30 @@ class Action:
         return "gray"
     
     def reset(self):
+        """Move the Action to a pending state."""
         self._state = "PENDING"
 
     def node(self, stream):
+        """Return the node as per how it should look in a graph.
+
+        This is unimplemented in the base class.
+        """
+        
         raise NotImplementedError
 
     def deps(self, stream):
+        """Emit all dependencies for this action to a stream."""
         for node in self._after:
             stream.write(f'  "{node}" -> "{self._name}"\n')
 
 
 class Prompt(Action):
+    """An Action that presents a text, then prompts for a yes/no answer.
+
+    A "yes" is considered a successful completion, and a "no" as a failure.
+    Ensure that your prompts follow this format.
+    """
+    
     def __init__(self, text=None, prompt=None, fail=False, **kwargs):
         super().__init__(**kwargs)
         if prompt is None:
@@ -327,12 +377,18 @@ class Prompt(Action):
         self._fail = fail
 
     def _get_answer(self):
+        """Get an answer.
+
+        This method has an escape hatch for when it is called from within
+        the test harness.
+        """
         if self._under_test:
             return not self._fail
         response = input(self._prompt)
         return parse_response(response)
 
     def run(self):
+        """Execute the Prompt action."""
         self._header("")
         print(make_wrapped(self._plan.expand_variables(self._text)))
         if self._get_answer():
@@ -341,10 +397,16 @@ class Prompt(Action):
             self.fail()
 
     def node(self, stream):
+        """Return the node as per how it should look in a graph."""
         stream.write(f'  "{self._name}" [ shape=note fillcolor={self._color()} ]\n')
 
 
 class Set(Action):
+    """This Action sets a variable.
+
+    It requires the name of the variable and will optionally take a default
+    value that will be variable-expanded.
+    """
     def __init__(self, variable=None, default=None, **kwargs):
         self._variable = variable
         self._default = default
@@ -353,6 +415,7 @@ class Set(Action):
         super().__init__(**kwargs)
 
     def run(self):
+        """Exectute the Set action."""
         self._header(f'\tSetting the value of variable {self._variable}')
         default = self._plan.expand_variables(self._default)
         new_value = default
@@ -367,15 +430,26 @@ class Set(Action):
             self.fail()
 
     def node(self, stream):
+        """Return the node as per how it should look in a graph."""
         stream.write(f'  "{self._name}" [ shape=polygon fillcolor={self._color()} ]\n')
 
 
 class Command(Action):
+    """This represents an Action that runs an external command.
+
+    If that completes with a successful (0) exit status, the Command action
+    is considered done, otherwise it is considered a failure.
+    """
     def __init__(self, command=None, **kwargs):
         self._command = command
         super().__init__(**kwargs)
 
     def run(self):
+        """Run the Command.
+
+        If this is flagged as a dry-run, print the command, then mark the
+        Command as done.
+        """
         if not self._is_pending():
             raise DoubleRun(f'Command {self._name} executed twice')
         cmd = self._plan.expand_variables(self._command)
@@ -397,6 +471,7 @@ class Command(Action):
         self.done()
 
     def node(self, stream):
+        """Return the node as per how it should look in a graph."""
         stream.write(f'  "{self._name}" [ shape=component fillcolor={self._color()} ]\n')
 
 
@@ -497,6 +572,7 @@ def restore(filename):
 
 
 def load(filename):
+    """Load or restore a file, as appropriate."""
     with open(filename) as f:
         data = yaml.safe_load(f)
         if 'plan' in data:
@@ -504,6 +580,7 @@ def load(filename):
         return load_plan(filename)
 
 def run(filename):
+    """Load plan from file, then run it."""
     plan = load_plan(filename)
     if plan.run():
         # Everything is OK.
@@ -514,6 +591,7 @@ def run(filename):
 
 
 def resume(filename):
+    """Restore a plan from a save-file, then run the plan."""
     plan = restore(filename)
     if plan.run():
         # Everything is OK.
@@ -524,6 +602,7 @@ def resume(filename):
 
 
 def save(plan, sink, name):
+    """Save a plan to file."""
     plan.save(sink)
     
     print()
@@ -532,11 +611,13 @@ def save(plan, sink, name):
     
 
 def graph(filename ,out=sys.stdout):
+    """Load a plan from a main file or a save-file, then graph it."""
     plan = load(filename)
     plan.graph(out)
 
 
 def main():
+    """Main entrypoint."""
     global DRYRUN
     
     parser = argparse.ArgumentParser()
