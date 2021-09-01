@@ -502,6 +502,8 @@ def build_action(data):
         action_type = Prompt
 
     if action_type is None:
+        if name in data:
+            raise UnknownAction('Unknown action %s, keys are %s' % (data['name'], data.keys(),))
         raise UnknownAction('Unknown action, keys are %s' % (data.keys(),))
 
     return action_type(**data)
