@@ -253,8 +253,8 @@ class Plan:
     def graph(self, stream):
         """Emit the Plan as a graph."""
         stream.write("digraph {\n")
-        stream.write('  "start" [ shape=circle fillcolor=gray ]\n')
-        stream.write('  "end" [ shape=octagon fillcolor=gray ]\n')
+        stream.write('  "start" [ shape=circle fillcolor=gray style=filled ]\n')
+        stream.write('  "end" [ shape=octagon fillcolor=gray style=filled ]\n')
         is_precond = set()
         for name in sorted(self._actions):
             self._actions[name].node(stream)
@@ -398,7 +398,7 @@ class Prompt(Action):
 
     def node(self, stream):
         """Return the node as per how it should look in a graph."""
-        stream.write(f'  "{self._name}" [ shape=note fillcolor={self._color()} ]\n')
+        stream.write(f'  "{self._name}" [ shape=note fillcolor={self._color()} style=filled ]\n')
 
 
 class Set(Action):
@@ -431,7 +431,7 @@ class Set(Action):
 
     def node(self, stream):
         """Return the node as per how it should look in a graph."""
-        stream.write(f'  "{self._name}" [ shape=polygon fillcolor={self._color()} ]\n')
+        stream.write(f'  "{self._name}" [ shape=polygon fillcolor={self._color()} style=filled ]\n')
 
 
 class Command(Action):
@@ -472,7 +472,7 @@ class Command(Action):
 
     def node(self, stream):
         """Return the node as per how it should look in a graph."""
-        stream.write(f'  "{self._name}" [ shape=component fillcolor={self._color()} ]\n')
+        stream.write(f'  "{self._name}" [ shape=component fillcolor={self._color()} style=filled ]\n')
 
 
 def build_action(data):
@@ -502,7 +502,7 @@ def build_action(data):
         action_type = Prompt
 
     if action_type is None:
-        if name in data:
+        if 'name' in data:
             raise UnknownAction('Unknown action %s, keys are %s' % (data['name'], data.keys(),))
         raise UnknownAction('Unknown action, keys are %s' % (data.keys(),))
 

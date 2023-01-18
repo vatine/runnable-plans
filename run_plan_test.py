@@ -546,7 +546,7 @@ class TestGraph(unittest.TestCase):
         plan = run_plan.load("testdata/plan_small1.yaml")
         sink = io.StringIO()
         plan.graph(sink)
-        want = '''digraph {\n  "start" [ shape=circle fillcolor=gray ]\n  "end" [ shape=octagon fillcolor=gray ]\n  "test" [ shape=component fillcolor=gray ]\n  "start" -> "test"\n  "test" -> "end"\n}\n'''
+        want = '''digraph {\n  "start" [ shape=circle fillcolor=gray style=filled ]\n  "end" [ shape=octagon fillcolor=gray style=filled ]\n  "test" [ shape=component fillcolor=gray style=filled ]\n  "start" -> "test"\n  "test" -> "end"\n}\n'''
         self.assertEqual(sink.getvalue(), want)
         sink.close()
 
@@ -554,14 +554,14 @@ class TestGraph(unittest.TestCase):
         plan = run_plan.load("testdata/restore_graph.yaml")
         sink = io.StringIO()
         plan.graph(sink)
-        want = '''digraph {\n  "start" [ shape=circle fillcolor=gray ]\n  "end" [ shape=octagon fillcolor=gray ]\n  "prompter" [ shape=note fillcolor=green ]\n  "runner" [ shape=component fillcolor=red ]\n  "setvar" [ shape=polygon fillcolor=gray ]\n  "prompter" -> "runner"\n  "prompter" -> "setvar"\n  "start" -> "prompter"\n  "runner" -> "end"\n  "setvar" -> "end"\n}\n'''
+        want = '''digraph {\n  "start" [ shape=circle fillcolor=gray style=filled ]\n  "end" [ shape=octagon fillcolor=gray style=filled ]\n  "prompter" [ shape=note fillcolor=green style=filled ]\n  "runner" [ shape=component fillcolor=red style=filled ]\n  "setvar" [ shape=polygon fillcolor=gray style=filled ]\n  "prompter" -> "runner"\n  "prompter" -> "setvar"\n  "start" -> "prompter"\n  "runner" -> "end"\n  "setvar" -> "end"\n}\n'''
         self.assertEqual(sink.getvalue(), want)
         sink.close()
 
     def test_graph(self):
         sink = io.StringIO()
         run_plan.graph("testdata/plan_small1.yaml", out=sink)
-        want = '''digraph {\n  "start" [ shape=circle fillcolor=gray ]\n  "end" [ shape=octagon fillcolor=gray ]\n  "test" [ shape=component fillcolor=gray ]\n  "start" -> "test"\n  "test" -> "end"\n}\n'''
+        want = '''digraph {\n  "start" [ shape=circle fillcolor=gray style=filled ]\n  "end" [ shape=octagon fillcolor=gray style=filled ]\n  "test" [ shape=component fillcolor=gray style=filled ]\n  "start" -> "test"\n  "test" -> "end"\n}\n'''
         self.assertEqual(sink.getvalue(), want)
         sink.close()
         
