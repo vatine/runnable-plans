@@ -620,6 +620,11 @@ class TestParseTimeSpec(unittest.TestCase):
     def test_multiple_ranges(self):
         self.assertEqual({1: True, 2: True, 3: True, 7: True, 8: True, 9: True}, run_plan.parse_time_spec("1-3, 7-9"))
 
+    def test_invalid1(self):
+        self.assertRaises(run_plan.InvalidTimeSpec, run_plan.parse_time_spec, "1, 3, 5-f")
+
+    def test_invalid2(self):
+        self.assertRaises(run_plan.InvalidTimeSpec, run_plan.parse_time_spec, "1, 3, 5-4")
 
 class TestTimeGate(unittest.TestCase):
     def test_all_inside(self):
