@@ -5,6 +5,7 @@
 
 
 import io
+import time
 import unittest
 
 import run_plan
@@ -91,8 +92,42 @@ class TestBuildAction(unittest.TestCase):
         rv = run_plan.build_action(data)
         self.assertEqual(type(rv), run_plan.Prompt)
         self.assertEqual(rv._plan, "9")
-        
 
+    def test_timegate_minutes(self):
+        data = {
+            "name": "name",
+            "minutes": "17, 42",
+        }
+        rv = run_plan.build_action(data)
+        self.assertEqual(type(rv), run_plan.TimeGate)
+
+    def test_timegate_hours(self):
+        data = {
+            "name": "name",
+            "hours": "7",
+        }
+        rv = run_plan.build_action(data)
+        self.assertEqual(type(rv), run_plan.TimeGate)
+        self.assertTrue(rv._hours[7])
+        self.assertFalse(8 in rv._hours)
+        self.assertFalse(6 in rv._hours)
+
+    def test_timegate_weekdays(self):
+        data = {
+            "name": "name",
+            "weekdays": "7",
+        }
+        rv = run_plan.build_action(data)
+        self.assertEqual(type(rv), run_plan.TimeGate)
+        self.assertTrue(rv._weekdays[0])
+        self.assertFalse(1 in rv._weekdays)
+        self.assertFalse(2 in rv._weekdays)
+        self.assertFalse(3 in rv._weekdays)
+        self.assertFalse(4 in rv._weekdays)
+        self.assertFalse(5 in rv._weekdays)
+        self.assertFalse(6 in rv._weekdays)
+        self.assertTrue(rv._weekdays[7])
+        
 
 class TestPlanCircularity(unittest.TestCase):
     def test_no_actions(self):
@@ -570,6 +605,58 @@ class TestSaves(unittest.TestCase):
         plan = run_plan.load("testdata/restore_graph.yaml")
         sink = io.StringIO()
         run_plan.save(plan, sink, "foo")
+
+
+class TestParseTimeSpec(unittest.TestCase):
+    def test_single_number(self):
+        self.assertEqual({1: True}, run_plan.parse_time_spec("1"))
+
+    def test_single_range(self):
+        self.assertEqual({1: True, 2: True, 3: True}, run_plan.parse_time_spec("1-3"))
+
+    def test_multiple_numbers(self):
+        self.assertEqual({1: True, 3: True}, run_plan.parse_time_spec("1, 3"))
+
+    def test_multiple_ranges(self):
+        self.assertEqual({1: True, 2: True, 3: True, 7: True, 8: True, 9: True}, run_plan.parse_time_spec("1-3, 7-9"))
+
+    def test_invalid1(self):
+        self.assertRaises(run_plan.InvalidTimeSpec, run_plan.parse_time_spec, "1, 3, 5-f")
+
+    def test_invalid2(self):
+        self.assertRaises(run_plan.InvalidTimeSpec, run_plan.parse_time_spec, "1, 3, 5-4")
+
+class TestTimeGate(unittest.TestCase):
+    def test_all_inside(self):
+        gate = run_plan.TimeGate(name="test")
+        now = time.struct_time([2023, 2, 14, 21, 17, 51, 1, 45, 0])
+        self.assertTrue(gate.check_match(now))
+    
+    def test_outside_minute_window(self):
+        gate = run_plan.TimeGate(name="test", minutes="0-16")
+        now = time.struct_time([2023, 2, 14, 21, 17, 51, 1, 45, 0])
+        self.assertFalse(gate.check_match(now))
+
+    def test_outside_hour_window(self):
+        gate = run_plan.TimeGate(name="test", hours="3, 12", minutes="0-18")
+        now = time.struct_time([2023, 2, 14, 21, 17, 51, 1, 45, 0])
+        self.assertFalse(gate.check_match(now))
+
+    def test_inside_hour_outside_minute(self):
+        gate = run_plan.TimeGate(name="test", hours="17", minutes="42")
+        now = time.struct_time([2023, 2, 14, 21, 17, 51, 1, 45, 0])
+        self.assertFalse(gate.check_match(now))
+
+    def test_outside_weekday(self):
+        gate = run_plan.TimeGate(name="test", weekdays="5-7")
+        now = time.struct_time([2023, 2, 14, 21, 17, 51, 1, 45, 0])
+        self.assertFalse(gate.check_match(now))
+
+    def test_restricted_inside(self):
+        gate = run_plan.TimeGate(name="test", weekdays="1-3", hours="18-22", minutes="15-20")
+        now = time.struct_time([2023, 2, 14, 21, 17, 51, 1, 45, 0])
+        self.assertTrue(gate.check_match(now))
+        
 
 if __name__ == '__main__':
     unittest.main()

@@ -48,7 +48,17 @@ command: shell-command
 
 For "set variable" actions:
 variable: <variable name>
-default: <default value, optional> 
+default: <default value, optional>
+
+For time-gate actions:
+weekdays: <time spec> (optional, defaults to "0-7", 0, 7 -> Sunday, 1 -> Monday...)
+hours: <time spec> (optional, defaults to "0-23")
+minutes: <time spec> (optional, defaults to "0-59")
+
+A time spec is a sequence of either numbers, or ranges, indicating
+what parts are "part of" the time specificaction. As an example, "9,
+15-19", matches 9, 15, 16, 17, 18, or 19. Spaces are optional.
+
 """
 
 import argparse
@@ -56,6 +66,7 @@ import random
 import subprocess
 import sys
 import tempfile
+import time
 import yaml
 
 STATES = ["PENDING", "DONE", "FAILED"]
@@ -73,6 +84,8 @@ class IncorrectPlan(Exception):
 class DoubleRun(Exception):
     pass
 
+class InvalidTimeSpec(Exception):
+    pass
 
 
 class Plan:
@@ -270,7 +283,7 @@ class Plan:
         
 
 class Action:
-    """Base class fro Actions.
+    """Base class for Actions.
 
     We expect no actual Action in use to be of this class,but there are a few
     handy utility methods we can hang o this and a few 'must be implemented'
@@ -475,7 +488,61 @@ class Command(Action):
         stream.write(f'  "{self._name}" [ shape=component fillcolor={self._color()} style=filled ]\n')
 
 
+
+class TimeGate(Action):
+    def __init__(self, hours="0-23", minutes="0-59", weekdays="0-7", **kwargs):
+        self._hours = parse_time_spec(hours)
+        self._minutes = parse_time_spec(minutes)
+        self._weekdays = parse_time_spec(weekdays)
+        if 7 in self._weekdays:
+            self._weekdays[0] = self._weekdays[7]
+        super().__init__(**kwargs)
+
+    def run(self):
+        self._header("\nChecking the following time-gate:\n\t\t"+cmd)
+        if DRYRUN:
+            self._dryrun()
+            return
+        if self._check_match(time.localtime()):
+            self.done()
+
+    def check_match(self, now):
+        if ((now.tm_wday+1) % 7) in self._weekdays:
+            if now.tm_hour in self._hours:
+                if now.tm_min in self._minutes:
+                    return True
+        return False
+
+    def _dryrun(self):
+        self.done()
+
+
+def parse_time_spec(spec):
+    """Return a dictionary mapping each number in the time
+    specification to a True, if it is part of the specification.
+    """
+
+    parts = [s.strip() for s in spec.split(',')]
+    return_value = {}
+
+    try:
+        for part in parts:
+            if '-' in part:
+                low, high = part.split('-')
+                if low >= high:
+                    raise InvalidTimeSpec("%s is not a valid time specification" % (spec,))
+                for n in range(int(low), int(high)+1):
+                    return_value[n] = True
+            else:
+                return_value[int(part)] = True
+    except ValueError:
+        raise InvalidTimeSpec("%s is not a valid time specification" % (spec,))
+
+    return return_value
+             
+        
 def build_action(data):
+
     """Build an Action.
 
     Builds an action based on the contents of an input dict.  If it is
@@ -501,6 +568,11 @@ def build_action(data):
             raise UnknownAction('Action %s seems to be a mix of Prompt, and one or more of Command or Set' % data['name'])
         action_type = Prompt
 
+    if ('weekdays' in data) or ('hours' in data) or ('minutes' in data):
+        if action_type is not None:
+            raise UnknownAction('Action %s seems to be a mix of a TimeGate and one or more other action types' % (data['name'], ))
+        action_type = TimeGate
+        
     if action_type is None:
         if 'name' in data:
             raise UnknownAction('Unknown action %s, keys are %s' % (data['name'], data.keys(),))
